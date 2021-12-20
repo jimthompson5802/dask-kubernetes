@@ -97,3 +97,75 @@ kubernetes:
     #       requests:
     #         cpu: "1.75"
     #         memory: 6G
+
+# kubeflow specific templates
+kubeflow:
+  scheduler-envoyfilter-template:
+    apiVersion: networking.istio.io/v1alpha3
+    kind: EnvoyFilter
+    metadata:
+      name: dask-scheduler-add-header
+      namespace: kubeflow-user  # TODO ${namespace}
+    spec:
+      configPatches:
+        - applyTo: VIRTUAL_HOST
+          match:
+            context: SIDECAR_OUTBOUND
+            routeConfiguration:
+              vhost:
+                name: dask-scheduler.kubeflow-user.svc.cluster.local:8786  # TODO dask-scheduler.${namespace}.svc.cluster.local:8786
+                route:
+                  name: default
+          patch:
+            operation: MERGE
+            value:
+              request_headers_to_add:
+                - append: true
+                  header:
+                    key: kubeflow-userid
+                    value: kubeflow-user  # TODO ${namespace}
+
+  scheduler-ui-service-template:
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: dask-scheduler
+        component: scheduler
+      name: dask-scheduler-ui
+      namespace: kubeflow-user  # TODO ${namespace}
+    spec:
+      ports:
+        - name: tcp-dask-scheduler-ui
+          port: 80
+          appProtocol: http
+          targetPort: 8787
+      selector:
+        app: dask-scheduler
+        component: scheduler
+      sessionAffinity: None
+      type: ClusterIP
+
+  scheduler-virtual-service-template:
+    apiVersion: networking.istio.io/v1alpha3
+    kind: VirtualService
+    metadata:
+      name: dask-scheduler
+      namespace: kubeflow-user  # TODO ${namespace}
+    spec:
+      gateways:
+        - kubeflow/kubeflow-gateway
+      hosts:
+        - '*'
+      http:
+        - match:
+            - uri:
+                prefix: /apps/kubeflow-user/dask/  # TODO /apps/${namespace}/dask/
+          rewrite:
+            uri: /
+          route:
+            - destination:
+                host: dask-scheduler-ui.kubeflow-user  # TODO dask-scheduler-ui.${namespace}.svc.cluster.local
+                port:
+                  number: 80
+          timeout: 300s
