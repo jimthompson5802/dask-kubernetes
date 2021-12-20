@@ -106,7 +106,7 @@ class Pod(ProcessInterface):
     async def logs(self):
         try:
             log = await self.core_api.read_namespaced_pod_log(
-                self._pod.metadata.name, self.namespace
+                self._pod.metadata.name, self.namespace, container='dask'
             )
         except ApiException as e:
             if "waiting to start" in str(e):
