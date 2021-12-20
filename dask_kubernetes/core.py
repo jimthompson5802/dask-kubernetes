@@ -332,6 +332,9 @@ class KubeCluster(SpecCluster):
     deploy_mode: str (optional)
         Run the scheduler as "local" or "remote".
         Defaults to ``"remote"``.
+    enable_kubeflow: bool (optional)
+        Enable support for running in a kubeflow enabled cluster.
+        Defaults to ``False``.
     **kwargs: dict
         Additional keyword arguments to pass to LocalCluster
 
@@ -415,6 +418,7 @@ class KubeCluster(SpecCluster):
         security=None,
         scheduler_service_wait_timeout=None,
         scheduler_pod_template=None,
+        enable_kubeflow=False,
         **kwargs
     ):
         if isinstance(pod_template, str):
@@ -471,6 +475,7 @@ class KubeCluster(SpecCluster):
         self.env = dask.config.get("kubernetes.env", override_with=env)
         self.auth = auth
         self.kwargs = kwargs
+        self.enable_kubeflow = enable_kubeflow
         super().__init__(**self.kwargs)
 
     def _get_pod_template(self, pod_template, pod_type):
