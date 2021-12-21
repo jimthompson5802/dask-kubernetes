@@ -100,6 +100,10 @@ kubernetes:
 
 # kubeflow specific templates
 kubeflow:
+  # idicator if kubeflow support is enabled
+  enable_kubeflow_support: False
+
+  # templates for istio related resources required by kubeflow
   scheduler-envoyfilter-template:
     apiVersion: networking.istio.io/v1alpha3
     kind: EnvoyFilter

@@ -30,6 +30,7 @@ from .utils import (
     escape,
     get_external_address_for_scheduler_service,
 )
+from .config import is_kubeflow_support_enabled, set_kubeflow_support
 
 logger = logging.getLogger(__name__)
 
@@ -421,6 +422,8 @@ class KubeCluster(SpecCluster):
         enable_kubeflow=False,
         **kwargs
     ):
+        set_kubeflow_support(enable_kubeflow)
+        
         if isinstance(pod_template, str):
             with open(pod_template) as f:
                 pod_template = dask.config.expand_environment_variables(
@@ -428,7 +431,7 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(pod_template, dict):
             pod_template = make_pod_from_dict(pod_template)
-            if enable_kubeflow:
+            if is_kubeflow_support_enabled():
                 try: 
                     pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
                 except TypeError:
@@ -441,7 +444,7 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(scheduler_pod_template, dict):
             scheduler_pod_template = make_pod_from_dict(scheduler_pod_template)
-            if enable_kubeflow:
+            if is_kubeflow_support_enabled():
                 try: 
                     pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
                 except TypeError:
@@ -486,8 +489,8 @@ class KubeCluster(SpecCluster):
         self.env = dask.config.get("kubernetes.env", override_with=env)
         self.auth = auth
         self.kwargs = kwargs
-        self.enable_kubeflow = enable_kubeflow
-        if enable_kubeflow:
+
+        if is_kubeflow_support_enabled():
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['appProtocol'] = 'TCP'
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['name'] = 'tcp-comm'
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['appProtocol'] = 'TCP'
