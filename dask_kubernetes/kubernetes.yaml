@@ -105,7 +105,7 @@ kubeflow:
 
   # templates for istio related resources required by kubeflow
   scheduler-envoyfilter-template:
-    apiVersion: networking.istio.io/v1alpha3
+    apiVersion: <placeholder-api-group>/<placeholder-api-version>
     kind: EnvoyFilter
     metadata:
       name: dask-scheduler-add-header

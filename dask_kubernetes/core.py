@@ -35,7 +35,9 @@ from .config import is_kubeflow_support_enabled, set_kubeflow_support
 logger = logging.getLogger(__name__)
 
 SCHEDULER_PORT = 8786
-
+# istio contstants
+ISTIO_API_GROUP = 'networking.istio.io'
+ISTIO_API_VERSION = 'v1alpha3'
 
 class Pod(ProcessInterface):
     """A superclass for Kubernetes Pods
@@ -50,6 +52,7 @@ class Pod(ProcessInterface):
         cluster,
         core_api,
         policy_api,
+        custom_object_api,
         pod_template,
         namespace,
         loop=None,
@@ -59,6 +62,7 @@ class Pod(ProcessInterface):
         self.cluster = cluster
         self.core_api = core_api
         self.policy_api = policy_api
+        self.custom_object_api = custom_object_api
         self.pod_template = copy.deepcopy(pod_template)
         self.base_labels = self.pod_template.metadata.labels
         self.namespace = namespace
@@ -203,6 +207,14 @@ class Scheduler(Pod):
         )
 
         self.pdb = await self._create_pdb()
+        if is_kubeflow_support_enabled():
+            # create istio related resources
+            await self._create_istio_resources(
+                self.service.metadata.name,
+                self.namespace,
+                SCHEDULER_PORT
+            )
+
 
     async def close(self, **kwargs):
         if self.service:
@@ -266,6 +278,32 @@ class Scheduler(Pod):
             self.cluster_name, self.namespace
         )
 
+    async def _create_istio_resources(
+        self,
+        service_name: str,
+        namespace: str,
+        port: int
+    ) -> None:
+        # instantiate the EnvoyFilter to support communication with scheduler
+        envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
+        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
+        envoy_filter['metadata'].update({
+            'name': '-'.join([service_name, 'add-header']), 
+            'namespace': namespace
+        })
+        envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
+            'name': f"{service_name}.{namespace}:{port}"
+        })
+        envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
+            'value': namespace
+        })
+        await self.custom_object_api.create_namespaced_custom_object(
+            group=ISTIO_API_GROUP, 
+            version=ISTIO_API_VERSION,
+            namespace=self.namespace,
+            plural='envoyfilters',
+            body=envoy_filter
+        )
 
 class KubeCluster(SpecCluster):
     """Launch a Dask cluster on Kubernetes
@@ -423,7 +461,7 @@ class KubeCluster(SpecCluster):
         **kwargs
     ):
         set_kubeflow_support(enable_kubeflow)
-        
+
         if isinstance(pod_template, str):
             with open(pod_template) as f:
                 pod_template = dask.config.expand_environment_variables(
@@ -568,6 +606,9 @@ class KubeCluster(SpecCluster):
 
         self.core_api = kubernetes.client.CoreV1Api()
         self.policy_api = kubernetes.client.PolicyV1beta1Api()
+        self.custom_object_api = kubernetes.client.CustomObjectsApi(
+            kubernetes.client.ApiClient()
+        )
 
         if self.namespace is None:
             self.namespace = namespace_default()
@@ -588,6 +629,7 @@ class KubeCluster(SpecCluster):
             "cluster": self,
             "core_api": self.core_api,
             "policy_api": self.policy_api,
+            "custom_object_api": self.custom_object_api,
             "namespace": self.namespace,
             "loop": self.loop,
         }
