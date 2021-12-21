@@ -487,6 +487,12 @@ class KubeCluster(SpecCluster):
         self.auth = auth
         self.kwargs = kwargs
         self.enable_kubeflow = enable_kubeflow
+        if enable_kubeflow:
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['appProtocol'] = 'TCP'
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['name'] = 'tcp-comm'
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['appProtocol'] = 'TCP'
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['name'] = 'tcp-dashboard'
+
         super().__init__(**self.kwargs)
 
     def _get_pod_template(self, pod_template, pod_type):
