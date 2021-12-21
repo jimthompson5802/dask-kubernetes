@@ -106,7 +106,7 @@ class Pod(ProcessInterface):
     async def logs(self):
         try:
             log = await self.core_api.read_namespaced_pod_log(
-                self._pod.metadata.name, self.namespace, container='dask'
+                self._pod.metadata.name, self.namespace
             )
         except ApiException as e:
             if "waiting to start" in str(e):
@@ -428,6 +428,11 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(pod_template, dict):
             pod_template = make_pod_from_dict(pod_template)
+            if enable_kubeflow:
+                try: 
+                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
+                except TypeError:
+                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'false'}
 
         if isinstance(scheduler_pod_template, str):
             with open(scheduler_pod_template) as f:
@@ -436,6 +441,12 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(scheduler_pod_template, dict):
             scheduler_pod_template = make_pod_from_dict(scheduler_pod_template)
+            if enable_kubeflow:
+                try: 
+                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
+                except TypeError:
+                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'false'}
+
 
         self.pod_template = pod_template
         self.scheduler_pod_template = scheduler_pod_template
