@@ -289,7 +289,8 @@ class Scheduler(Pod):
         envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
         envoy_filter['metadata'].update({
             'name': '-'.join([service_name, 'add-header']), 
-            'namespace': namespace
+            'namespace': namespace,
+            'labels': {'app': 'dask'}
         })
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
             'name': f"{service_name}.{namespace}:{port}"
