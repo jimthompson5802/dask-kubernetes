@@ -214,7 +214,7 @@ class Scheduler(Pod):
             )
         # TODO: figure out better approach than this 
         #       heuristic to wait for istio resources to be fully functional
-        # await asyncio.sleep(10)
+        await asyncio.sleep(10)
 
         self.external_address = await get_external_address_for_scheduler_service(
             self.core_api, self.service
