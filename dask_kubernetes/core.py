@@ -205,16 +205,16 @@ class Scheduler(Pod):
         )
 
         # create envoyfilter for the service
-        if is_kubeflow_support_enabled():
-            # create istio related resources
-            await self._create_istio_resources(
-                self.service.metadata.name,
-                self.namespace,
-                SCHEDULER_PORT
-            )
+        # if is_kubeflow_support_enabled():
+        #     # create istio related resources
+        #     await self._create_istio_resources(
+        #         self.service.metadata.name,
+        #         self.namespace,
+        #         SCHEDULER_PORT
+        #     )
         # TODO: figure out better approach than this 
         #       heuristic to wait for istio resources to be fully functional
-        await asyncio.sleep(10)
+        # await asyncio.sleep(10)
 
         self.external_address = await get_external_address_for_scheduler_service(
             self.core_api, self.service
