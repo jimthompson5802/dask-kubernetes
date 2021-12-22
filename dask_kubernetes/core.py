@@ -331,6 +331,9 @@ class Scheduler(Pod):
             body=envoy_filter
         )
 
+        # TODO: determine if this 2nd envoy filter is needed for scheduler dashboard access
+        #       right now this does not seem to affect processing one way or the other
+        #       if removed remember to remove from close() method as well.
         # instantiate the EnvoyFilter to support communication with scheduler dashboard ui
         envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
         envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
