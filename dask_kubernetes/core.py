@@ -196,17 +196,15 @@ class Scheduler(Pod):
                     self.address = line.split("Scheduler at:")[1].strip()
             await asyncio.sleep(0.1)
 
+        # create scheduler service
         self.service = await self._create_service()
         self.address = "tcp://{name}.{namespace}:{port}".format(
             name=self.service.metadata.name,
             namespace=self.namespace,
             port=SCHEDULER_PORT,
         )
-        self.external_address = await get_external_address_for_scheduler_service(
-            self.core_api, self.service
-        )
 
-        self.pdb = await self._create_pdb()
+        # create envoyfilter for the service
         if is_kubeflow_support_enabled():
             # create istio related resources
             await self._create_istio_resources(
@@ -215,6 +213,11 @@ class Scheduler(Pod):
                 SCHEDULER_PORT
             )
 
+        self.external_address = await get_external_address_for_scheduler_service(
+            self.core_api, self.service
+        )
+
+        self.pdb = await self._create_pdb()
 
     async def close(self, **kwargs):
         if self.service:
