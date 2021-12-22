@@ -212,9 +212,9 @@ class Scheduler(Pod):
                 self.namespace,
                 SCHEDULER_PORT
             )
-        # TODO: figure out better approach than this 
-        #       heuristic to wait for istio resources to be fully functional
-        await asyncio.sleep(10)
+            # TODO: figure out better approach than this 
+            #       heuristic to wait for istio resources to be fully functional
+            await asyncio.sleep(5)
 
         self.external_address = await get_external_address_for_scheduler_service(
             self.core_api, self.service
