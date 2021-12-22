@@ -231,6 +231,17 @@ class Scheduler(Pod):
             await self.policy_api.delete_namespaced_pod_disruption_budget(
                 self.cluster_name, self.namespace
             )
+
+        if is_kubeflow_support_enabled():
+            # remove istio objects
+            await self.custom_object_api.delete_namespaced_custom_object(
+                group=ISTIO_API_GROUP, 
+                version=ISTIO_API_VERSION,
+                namespace=self.namespace,
+                plural='envoyfilters',
+                name='-'.join([self.service.metadata.name, 'add-header'])
+            )
+        
         await super().close(**kwargs)
 
     async def _create_service(self):
