@@ -241,6 +241,13 @@ class Scheduler(Pod):
                 plural='envoyfilters',
                 name='-'.join([self.service.metadata.name, 'add-header'])
             )
+            await self.custom_object_api.delete_namespaced_custom_object(
+                group=ISTIO_API_GROUP, 
+                version=ISTIO_API_VERSION,
+                namespace=self.namespace,
+                plural='envoyfilters',
+                name='-'.join([self.service.metadata.name, 'ui-add-header'])
+            )
         
         await super().close(**kwargs)
 
@@ -323,6 +330,30 @@ class Scheduler(Pod):
             plural='envoyfilters',
             body=envoy_filter
         )
+
+        # instantiate the EnvoyFilter to support communication with scheduler dashboard ui
+        envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
+        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
+        envoy_filter['metadata'].update({
+            'name': '-'.join([service_name, 'ui-add-header']), 
+            'namespace': namespace,
+            'labels': {'app': 'dask'}
+        })
+        envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
+            'name': f"{service_name}.{namespace}:{8787}"
+        })
+        # TODO: Confirm if this is namespace or userid
+        envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
+            'value': namespace
+        })
+        await self.custom_object_api.create_namespaced_custom_object(
+            group=ISTIO_API_GROUP, 
+            version=ISTIO_API_VERSION,
+            namespace=self.namespace,
+            plural='envoyfilters',
+            body=envoy_filter
+        )
+
 
 class KubeCluster(SpecCluster):
     """Launch a Dask cluster on Kubernetes
