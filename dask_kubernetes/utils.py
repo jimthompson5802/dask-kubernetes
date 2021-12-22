@@ -44,6 +44,8 @@ async def get_external_address_for_scheduler_service(
     core_api, service, port_forward_cluster_ip=None
 ):
     """Take a service object and return the scheduler address."""
+    # TODO: port.name changed from comm to tcp-comm for kubeflow
+    #       need to assess impact for vanilla k8s cluster setup
     [port] = [
         port.port
         for port in service.spec.ports
