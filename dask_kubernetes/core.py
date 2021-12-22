@@ -312,6 +312,7 @@ class Scheduler(Pod):
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
             'name': f"{service_name}.{namespace}:{port}"
         })
+        # TODO: Confirm if this is namespace or userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
             'value': namespace
         })
