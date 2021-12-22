@@ -549,8 +549,8 @@ class KubeCluster(SpecCluster):
         if is_kubeflow_support_enabled():
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['appProtocol'] = 'TCP'
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['name'] = 'tcp-comm'
-            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['appProtocol'] = 'TCP'
-            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['name'] = 'tcp-dashboard'
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['appProtocol'] = 'HTTP'
+            dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['name'] = 'http-dashboard'
 
         super().__init__(**self.kwargs)
 
