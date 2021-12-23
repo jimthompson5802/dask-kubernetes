@@ -37,7 +37,8 @@ logger = logging.getLogger(__name__)
 SCHEDULER_PORT = 8786
 # istio contstants
 ISTIO_API_GROUP = 'networking.istio.io'
-ISTIO_API_VERSION = 'v1alpha3'
+ISTIO_API_VERSION_ENVOYFILTER = 'v1alpha3'
+ISTIO_API_VERSION_VIRTUALSERVICE = 'v1beta1'
 
 class Pod(ProcessInterface):
     """A superclass for Kubernetes Pods
@@ -204,14 +205,10 @@ class Scheduler(Pod):
             port=SCHEDULER_PORT,
         )
 
-        # create envoyfilter for the service
+        # check if we are in kubeflow enabled cluster
         if is_kubeflow_support_enabled():
-            # create istio related resources
-            await self._create_istio_resources(
-                self.service.metadata.name,
-                self.namespace,
-                SCHEDULER_PORT
-            )
+            # create kubeflow related resources
+            await self._create_kubeflow_resources()
             # TODO: figure out better approach than this 
             #       heuristic to wait for istio resources to be fully functional
             await asyncio.sleep(5)
@@ -233,21 +230,7 @@ class Scheduler(Pod):
             )
 
         if is_kubeflow_support_enabled():
-            # remove istio objects
-            await self.custom_object_api.delete_namespaced_custom_object(
-                group=ISTIO_API_GROUP, 
-                version=ISTIO_API_VERSION,
-                namespace=self.namespace,
-                plural='envoyfilters',
-                name='-'.join([self.service.metadata.name, 'add-header'])
-            )
-            await self.custom_object_api.delete_namespaced_custom_object(
-                group=ISTIO_API_GROUP, 
-                version=ISTIO_API_VERSION,
-                namespace=self.namespace,
-                plural='envoyfilters',
-                name='-'.join([self.service.metadata.name, 'ui-add-header'])
-            )
+            await self._delete_kubeflow_resources()
         
         await super().close(**kwargs)
 
@@ -302,30 +285,25 @@ class Scheduler(Pod):
             self.cluster_name, self.namespace
         )
 
-    async def _create_istio_resources(
-        self,
-        service_name: str,
-        namespace: str,
-        port: int
-    ) -> None:
+    async def _create_kubeflow_resources(self) -> None:
         # instantiate the EnvoyFilter to support communication with scheduler
         envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
-        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
+        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
         envoy_filter['metadata'].update({
-            'name': '-'.join([service_name, 'add-header']), 
-            'namespace': namespace,
+            'name': '-'.join([self.service.metadata.name, 'add-header']), 
+            'namespace': self.namespace,
             'labels': {'app': 'dask'}
         })
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
-            'name': f"{service_name}.{namespace}:{port}"
+            'name': f"{self.service.metadata.name}.{self.namespace}:{SCHEDULER_PORT}"
         })
         # TODO: Confirm if this is namespace or userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': namespace
+            'value': self.namespace
         })
         await self.custom_object_api.create_namespaced_custom_object(
             group=ISTIO_API_GROUP, 
-            version=ISTIO_API_VERSION,
+            version=ISTIO_API_VERSION_ENVOYFILTER,
             namespace=self.namespace,
             plural='envoyfilters',
             body=envoy_filter
@@ -336,26 +314,70 @@ class Scheduler(Pod):
         #       if removed remember to remove from close() method as well.
         # instantiate the EnvoyFilter to support communication with scheduler dashboard ui
         envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
-        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION])
+        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
         envoy_filter['metadata'].update({
-            'name': '-'.join([service_name, 'ui-add-header']), 
-            'namespace': namespace,
+            'name': '-'.join([self.service.metadata.name, 'ui-add-header']), 
+            'namespace': self.namespace,
             'labels': {'app': 'dask'}
         })
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
-            'name': f"{service_name}.{namespace}:{8787}"
+            'name': f"{self.service.metadata.name}.{self.namespace}:{8787}"
         })
         # TODO: Confirm if this is namespace or userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': namespace
+            'value': self.namespace
         })
         await self.custom_object_api.create_namespaced_custom_object(
             group=ISTIO_API_GROUP, 
-            version=ISTIO_API_VERSION,
+            version=ISTIO_API_VERSION_ENVOYFILTER,
             namespace=self.namespace,
             plural='envoyfilters',
             body=envoy_filter
         )
+
+        # instantiate the VirtualService to support external access to Dashboard
+        virtual_service =  dask.config.get('kubeflow.scheduler-virtual-service-template')
+        virtual_service['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_VIRTUALSERVICE])
+        virtual_service['metadata'].update({
+            'name': self.service.metadata.name, 
+            'namespace': self.namespace,
+            'labels': {'app': 'dask'}
+        })
+        virtual_service['spec']['http'][0]['route'][0]['destination'].update({
+            'host': f"{self.service.metadata.name}.{self.namespace}"
+        })
+        await self.custom_object_api.create_namespaced_custom_object(
+            group=ISTIO_API_GROUP, 
+            version=ISTIO_API_VERSION_VIRTUALSERVICE,
+            namespace=self.namespace,
+            plural='virtualservices',
+            body=virtual_service
+        )
+
+    async def _delete_kubeflow_resources(self) -> None:
+            # remove istio objects
+            await self.custom_object_api.delete_namespaced_custom_object(
+                group=ISTIO_API_GROUP, 
+                version=ISTIO_API_VERSION_ENVOYFILTER,
+                namespace=self.namespace,
+                plural='envoyfilters',
+                name='-'.join([self.service.metadata.name, 'add-header'])
+            )
+            await self.custom_object_api.delete_namespaced_custom_object(
+                group=ISTIO_API_GROUP, 
+                version=ISTIO_API_VERSION_ENVOYFILTER,
+                namespace=self.namespace,
+                plural='envoyfilters',
+                name='-'.join([self.service.metadata.name, 'ui-add-header'])
+            )
+            await self.custom_object_api.delete_namespaced_custom_object(
+                group=ISTIO_API_GROUP, 
+                version=ISTIO_API_VERSION_VIRTUALSERVICE,
+                namespace=self.namespace,
+                plural='virtualservices',
+                name=self.service.metadata.name
+            )
+
 
 
 class KubeCluster(SpecCluster):
