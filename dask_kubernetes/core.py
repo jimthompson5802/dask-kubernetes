@@ -292,10 +292,9 @@ class Scheduler(Pod):
         envoy_filter['metadata'].update({
             'name': '-'.join([self.service.metadata.name, 'add-header']), 
             'namespace': self.namespace,
-            'labels': {'app': 'dask'}
         })
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
-            'name': f"{self.service.metadata.name}.{self.namespace}:{SCHEDULER_PORT}"
+            'name': f"{self.service.metadata.name}.{self.namespace}.svc.cluster.local:{SCHEDULER_PORT}"
         })
         # TODO: Confirm if this is namespace or userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
@@ -344,7 +343,7 @@ class Scheduler(Pod):
             'labels': {'app': 'dask'}
         })
         virtual_service['spec']['http'][0]['route'][0]['destination'].update({
-            'host': f"{self.service.metadata.name}.{self.namespace}"
+            'host': f"{self.service.metadata.name}.{self.namespace}.svc.cluster.local"
         })
         await self.custom_object_api.create_namespaced_custom_object(
             group=ISTIO_API_GROUP, 
