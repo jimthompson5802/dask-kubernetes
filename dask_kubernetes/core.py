@@ -313,27 +313,27 @@ class Scheduler(Pod):
         #       right now this does not seem to affect processing one way or the other
         #       if removed remember to remove from close() method as well.
         # instantiate the EnvoyFilter to support communication with scheduler dashboard ui
-        envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
-        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
-        envoy_filter['metadata'].update({
-            'name': '-'.join([self.service.metadata.name, 'ui-add-header']), 
-            'namespace': self.namespace,
-            'labels': {'app': 'dask'}
-        })
-        envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
-            'name': f"{self.service.metadata.name}.{self.namespace}:{8787}"
-        })
-        # TODO: Confirm if this is namespace or userid
-        envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': self.namespace
-        })
-        await self.custom_object_api.create_namespaced_custom_object(
-            group=ISTIO_API_GROUP, 
-            version=ISTIO_API_VERSION_ENVOYFILTER,
-            namespace=self.namespace,
-            plural='envoyfilters',
-            body=envoy_filter
-        )
+        # envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
+        # envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
+        # envoy_filter['metadata'].update({
+        #     'name': '-'.join([self.service.metadata.name, 'ui-add-header']), 
+        #     'namespace': self.namespace,
+        #     'labels': {'app': 'dask'}
+        # })
+        # envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
+        #     'name': f"{self.service.metadata.name}.{self.namespace}:{8787}"
+        # })
+        # # TODO: Confirm if this is namespace or userid
+        # envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
+        #     'value': self.namespace
+        # })
+        # await self.custom_object_api.create_namespaced_custom_object(
+        #     group=ISTIO_API_GROUP, 
+        #     version=ISTIO_API_VERSION_ENVOYFILTER,
+        #     namespace=self.namespace,
+        #     plural='envoyfilters',
+        #     body=envoy_filter
+        # )
 
         # instantiate the VirtualService to support external access to Dashboard
         virtual_service =  dask.config.get('kubeflow.scheduler-virtual-service-template')
@@ -363,13 +363,14 @@ class Scheduler(Pod):
                 plural='envoyfilters',
                 name='-'.join([self.service.metadata.name, 'add-header'])
             )
-            await self.custom_object_api.delete_namespaced_custom_object(
-                group=ISTIO_API_GROUP, 
-                version=ISTIO_API_VERSION_ENVOYFILTER,
-                namespace=self.namespace,
-                plural='envoyfilters',
-                name='-'.join([self.service.metadata.name, 'ui-add-header'])
-            )
+            # TODO: Determine if needed
+            # await self.custom_object_api.delete_namespaced_custom_object(
+            #     group=ISTIO_API_GROUP, 
+            #     version=ISTIO_API_VERSION_ENVOYFILTER,
+            #     namespace=self.namespace,
+            #     plural='envoyfilters',
+            #     name='-'.join([self.service.metadata.name, 'ui-add-header'])
+            # )
             await self.custom_object_api.delete_namespaced_custom_object(
                 group=ISTIO_API_GROUP, 
                 version=ISTIO_API_VERSION_VIRTUALSERVICE,
