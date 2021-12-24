@@ -136,7 +136,7 @@ kubeflow:
     kind: Service
     metadata:
       labels:
-        app: dask-scheduler
+        app: dask
         component: scheduler
       name: dask-scheduler-ui
       namespace: kubeflow-user  # TODO ${namespace}
