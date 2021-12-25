@@ -334,6 +334,20 @@ class Scheduler(Pod):
         #     body=envoy_filter
         # )
 
+        # TODO: Should removable when DASK labextension works - temporary placeholder
+        # create Service object for external access to dask scheduler dashboard
+        dashboard_ui_service_dict = dask.config.get("kubeflow.scheduler-ui-service-template")
+        dashboard_ui_service_template = clean_service_template(
+            make_service_from_dict(dashboard_ui_service_dict)
+        )
+        dashboard_ui_service_template.metadata.labels['dask.org/cluster-name'] = self.cluster_name
+        dashboard_ui_service_template.metadata.name = f'{self.cluster_name}-ui'
+        dashboard_ui_service_template.metadata.namespace = self.namespace
+        dashboard_ui_service_template.spec.selector['dask.org/cluster-name'] = self.cluster_name
+        await self.core_api.create_namespaced_service(
+            self.namespace, dashboard_ui_service_template
+        )
+
         # instantiate the VirtualService to support external access to Dashboard
         virtual_service =  dask.config.get('kubeflow.scheduler-virtual-service-template')
         virtual_service['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_VIRTUALSERVICE])
@@ -370,6 +384,13 @@ class Scheduler(Pod):
             #     plural='envoyfilters',
             #     name='-'.join([self.service.metadata.name, 'ui-add-header'])
             # )
+
+            # scheduler dashboard ui service
+            await self.core_api.delete_namespaced_service(
+                f'{self.cluster_name}-ui', self.namespace
+            )
+
+            # scheduler dashboard virtual service
             await self.custom_object_api.delete_namespaced_custom_object(
                 group=ISTIO_API_GROUP, 
                 version=ISTIO_API_VERSION_VIRTUALSERVICE,
