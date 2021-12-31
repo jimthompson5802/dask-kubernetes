@@ -108,8 +108,8 @@ kubeflow:
     apiVersion: <placeholder-api-group>/<placeholder-api-version>
     kind: EnvoyFilter
     metadata:
-      name: dask-scheduler-add-header
-      namespace: kubeflow-user  # TODO ${namespace}
+      name: ${dask-cluster-name}-add-header   # to be filled in
+      namespace: ${namespace}  # to be filled in
       labels:
         app: dask
     spec:
@@ -119,7 +119,7 @@ kubeflow:
             context: SIDECAR_OUTBOUND
             routeConfiguration:
               vhost:
-                name: dask-scheduler.kubeflow-user.svc.cluster.local:8786  # TODO dask-scheduler.${namespace}.svc.cluster.local:8786
+                name: ${dask-cluster-name}.${namespace}.svc.cluster.local:${scheduler-port}  # to be filled in
                 route:
                   name: default
           patch:
@@ -137,10 +137,10 @@ kubeflow:
     metadata:
       labels:
         app: dask
-        dask.org/cluster-name: TBD  # to be filled in
+        dask.org/cluster-name: ${dask-cluster-name}  # to be filled in
         dask.org/component: scheduler
-      name: cluster-name-ui     # to be filled in
-      namespace: kubeflow-user  # TODO ${namespace}
+      name: ${dask-cluster-name}     # to be filled in
+      namespace: ${namespace}  # to be filled in
     spec:
       ports:
         - name: http-dashboard
@@ -148,7 +148,7 @@ kubeflow:
           appProtocol: http
           targetPort: 8787
       selector:
-        dask.org/cluster-name: TBD   # to be filled in
+        dask.org/cluster-name: ${dask-cluster-name}   # to be filled in
         dask.org/component: scheduler
       sessionAffinity: None
       type: ClusterIP
@@ -157,8 +157,8 @@ kubeflow:
     apiVersion: networking.istio.io/v1alpha3
     kind: VirtualService
     metadata:
-      name: dask-scheduler      # to be filled in
-      namespace: kubeflow-user  # to be filled in
+      name: ${dask-cluster-name}  # to be filled in
+      namespace: ${namespace}  # to be filled in
     spec:
       gateways:
         - kubeflow/kubeflow-gateway
@@ -172,7 +172,7 @@ kubeflow:
             uri: /
           route:
             - destination:
-                host: dask-scheduler-ui.kubeflow-user  # TODO <dask-cluster-name>.${namespace}.svc.cluster.local
+                host:  ${dask-cluster-name}.${namespace}.svc.cluster.local  # TO BE FILLED IN
                 port:
                   number: 8787
           timeout: 300s

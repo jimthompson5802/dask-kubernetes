@@ -209,9 +209,6 @@ class Scheduler(Pod):
         if is_kubeflow_support_enabled():
             # create kubeflow related resources
             await self._create_kubeflow_resources()
-            # TODO: figure out better approach than this 
-            #       heuristic to wait for istio resources to be fully functional
-            # await asyncio.sleep(5)
 
         self.external_address = await get_external_address_for_scheduler_service(
             self.core_api, self.service
@@ -308,33 +305,7 @@ class Scheduler(Pod):
             body=envoy_filter
         )
 
-        # TODO: determine if this 2nd envoy filter is needed for scheduler dashboard access
-        #       right now this does not seem to affect processing one way or the other
-        #       if removed remember to remove from close() method as well.
-        # instantiate the EnvoyFilter to support communication with scheduler dashboard ui
-        # envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
-        # envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
-        # envoy_filter['metadata'].update({
-        #     'name': '-'.join([self.service.metadata.name, 'ui-add-header']), 
-        #     'namespace': self.namespace,
-        #     'labels': {'app': 'dask'}
-        # })
-        # envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
-        #     'name': f"{self.service.metadata.name}.{self.namespace}:{8787}"
-        # })
-        # # TODO: Confirm if this is namespace or userid
-        # envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-        #     'value': self.namespace
-        # })
-        # await self.custom_object_api.create_namespaced_custom_object(
-        #     group=ISTIO_API_GROUP, 
-        #     version=ISTIO_API_VERSION_ENVOYFILTER,
-        #     namespace=self.namespace,
-        #     plural='envoyfilters',
-        #     body=envoy_filter
-        # )
-
-        # TODO: Should removable when DASK labextension works - temporary placeholder
+        # TODO: This may be extraneous
         # create Service object for external access to dask scheduler dashboard
         dashboard_ui_service_dict = dask.config.get("kubeflow.scheduler-ui-service-template")
         dashboard_ui_service_template = clean_service_template(
@@ -376,14 +347,6 @@ class Scheduler(Pod):
                 plural='envoyfilters',
                 name='-'.join([self.service.metadata.name, 'add-header'])
             )
-            # TODO: Determine if needed
-            # await self.custom_object_api.delete_namespaced_custom_object(
-            #     group=ISTIO_API_GROUP, 
-            #     version=ISTIO_API_VERSION_ENVOYFILTER,
-            #     namespace=self.namespace,
-            #     plural='envoyfilters',
-            #     name='-'.join([self.service.metadata.name, 'ui-add-header'])
-            # )
 
             # scheduler dashboard ui service
             await self.core_api.delete_namespaced_service(
