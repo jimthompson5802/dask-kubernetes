@@ -13,9 +13,3 @@ with open(fn) as f:
     defaults = yaml.safe_load(f)
 
 dask.config.update_defaults(defaults)
-
-def set_kubeflow_support(flag: bool = False) -> None:
-    dask.config.get("kubeflow")['enable_kubeflow_support'] = flag
-
-def is_kubeflow_support_enabled():
-    return dask.config.get("kubeflow")['enable_kubeflow_support']

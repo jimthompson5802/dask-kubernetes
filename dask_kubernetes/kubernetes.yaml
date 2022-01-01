@@ -167,12 +167,12 @@ kubeflow:
       http:
         - match:
             - uri:
-                prefix: /apps/kubeflow-user/dask/  # TESTING purposes
+                prefix: /${dask-cluster-name}/${namespace}/dask/    # TO BE FILLED IN
           rewrite:
             uri: /
           route:
             - destination:
                 host:  ${dask-cluster-name}.${namespace}.svc.cluster.local  # TO BE FILLED IN
                 port:
-                  number: 8787
+                  number: 80
           timeout: 300s

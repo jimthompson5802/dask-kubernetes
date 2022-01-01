@@ -30,7 +30,6 @@ from .utils import (
     escape,
     get_external_address_for_scheduler_service,
 )
-from .config import is_kubeflow_support_enabled, set_kubeflow_support
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +205,7 @@ class Scheduler(Pod):
         )
 
         # check if we are in kubeflow enabled cluster
-        if is_kubeflow_support_enabled():
+        if dask.config.get("kubeflow.enable_kubeflow_support"):
             # create kubeflow related resources
             await self._create_kubeflow_resources()
 
@@ -226,7 +225,7 @@ class Scheduler(Pod):
                 self.cluster_name, self.namespace
             )
 
-        if is_kubeflow_support_enabled():
+        if dask.config.get("kubeflow.enable_kubeflow_support"):
             await self._delete_kubeflow_resources()
         
         await super().close(**kwargs)
@@ -297,6 +296,7 @@ class Scheduler(Pod):
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
             'value': self.namespace
         })
+        # create EnvoyFilter
         await self.custom_object_api.create_namespaced_custom_object(
             group=ISTIO_API_GROUP, 
             version=ISTIO_API_VERSION_ENVOYFILTER,
@@ -305,7 +305,6 @@ class Scheduler(Pod):
             body=envoy_filter
         )
 
-        # TODO: This may be extraneous
         # create Service object for external access to dask scheduler dashboard
         dashboard_ui_service_dict = dask.config.get("kubeflow.scheduler-ui-service-template")
         dashboard_ui_service_template = clean_service_template(
@@ -327,9 +326,15 @@ class Scheduler(Pod):
             'namespace': self.namespace,
             'labels': {'app': 'dask'}
         })
+        # point to k8s Service 
         virtual_service['spec']['http'][0]['route'][0]['destination'].update({
-            'host': f"{self.service.metadata.name}.{self.namespace}.svc.cluster.local"
+            'host': f"{self.service.metadata.name}-ui.{self.namespace}.svc.cluster.local"
         })
+        # overwrite with cluster specific URI
+        virtual_service['spec']['http'][0]['match'][0]['uri'].update({
+            'prefix': f'/{self.service.metadata.name}/{self.namespace}/dask/'
+        })
+        # create istio VirtualService Object
         await self.custom_object_api.create_namespaced_custom_object(
             group=ISTIO_API_GROUP, 
             version=ISTIO_API_VERSION_VIRTUALSERVICE,
@@ -519,7 +524,8 @@ class KubeCluster(SpecCluster):
         enable_kubeflow=False,
         **kwargs
     ):
-        set_kubeflow_support(enable_kubeflow)
+        # set_kubeflow_support(enable_kubeflow)
+        dask.config.set({"kubeflow.enable_kubeflow_support": enable_kubeflow})
 
         if isinstance(pod_template, str):
             with open(pod_template) as f:
@@ -528,7 +534,7 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(pod_template, dict):
             pod_template = make_pod_from_dict(pod_template)
-            if is_kubeflow_support_enabled():
+            if dask.config.get("kubeflow.enable_kubeflow_support"):
                 try: 
                     pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
                 except TypeError:
@@ -541,7 +547,7 @@ class KubeCluster(SpecCluster):
                 )
         if isinstance(scheduler_pod_template, dict):
             scheduler_pod_template = make_pod_from_dict(scheduler_pod_template)
-            if is_kubeflow_support_enabled():
+            if dask.config.get("kubeflow.enable_kubeflow_support"):
                 try: 
                     pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
                 except TypeError:
@@ -587,7 +593,7 @@ class KubeCluster(SpecCluster):
         self.auth = auth
         self.kwargs = kwargs
 
-        if is_kubeflow_support_enabled():
+        if dask.config.get("kubeflow.enable_kubeflow_support"):
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['appProtocol'] = 'TCP'
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[0]['name'] = 'tcp-comm'
             dask.config.get('kubernetes.scheduler-service-template.spec.ports')[1]['appProtocol'] = 'HTTP'
