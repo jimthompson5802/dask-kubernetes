@@ -284,7 +284,7 @@ class Scheduler(Pod):
     async def _create_kubeflow_resources(self) -> None:
         # instantiate the EnvoyFilter to support communication with scheduler
         envoy_filter =  dask.config.get('kubeflow.scheduler-envoyfilter-template')
-        envoy_filter['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_ENVOYFILTER])
+        envoy_filter['apiVersion'] = f'{ISTIO_API_GROUP}/{ISTIO_API_VERSION_ENVOYFILTER}'
         envoy_filter['metadata'].update({
             'name': '-'.join([self.service.metadata.name, 'add-header']), 
             'namespace': self.namespace,
@@ -320,7 +320,7 @@ class Scheduler(Pod):
 
         # instantiate the VirtualService to support external access to Dashboard
         virtual_service =  dask.config.get('kubeflow.scheduler-virtual-service-template')
-        virtual_service['apiVersion'] = '/'.join([ISTIO_API_GROUP, ISTIO_API_VERSION_VIRTUALSERVICE])
+        virtual_service['apiVersion'] = f'{ISTIO_API_GROUP}/{ISTIO_API_VERSION_VIRTUALSERVICE}'
         virtual_service['metadata'].update({
             'name': self.service.metadata.name, 
             'namespace': self.namespace,
@@ -332,7 +332,7 @@ class Scheduler(Pod):
         })
         # overwrite with cluster specific URI
         virtual_service['spec']['http'][0]['match'][0]['uri'].update({
-            'prefix': f'/{self.service.metadata.name}/{self.namespace}/dask/'
+            'prefix': f'/apps/{self.namespace}/{self.service.metadata.name}/dask/'
         })
         # create istio VirtualService Object
         await self.custom_object_api.create_namespaced_custom_object(
