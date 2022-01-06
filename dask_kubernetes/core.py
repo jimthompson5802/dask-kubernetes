@@ -111,7 +111,8 @@ class Pod(ProcessInterface):
     async def logs(self):
         try:
             log = await self.core_api.read_namespaced_pod_log(
-                self._pod.metadata.name, self.namespace
+                self._pod.metadata.name, self.namespace,
+                container='dask'
             )
         except ApiException as e:
             if "waiting to start" in str(e):
@@ -294,7 +295,7 @@ class Scheduler(Pod):
         })
         # TODO: need to generalize the setting of userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': "generic-id"
+            'value': "kubeflow-user"
         })
         # create EnvoyFilter
         await self.custom_object_api.create_namespaced_custom_object(
@@ -538,9 +539,9 @@ class KubeCluster(SpecCluster):
             pod_template = make_pod_from_dict(pod_template)
             if dask.config.get("kubeflow.enable_kubeflow_support"):
                 try: 
-                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
+                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'true'
                 except TypeError:
-                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'false'}
+                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'true'}
 
         if isinstance(scheduler_pod_template, str):
             with open(scheduler_pod_template) as f:
@@ -551,9 +552,9 @@ class KubeCluster(SpecCluster):
             scheduler_pod_template = make_pod_from_dict(scheduler_pod_template)
             if dask.config.get("kubeflow.enable_kubeflow_support"):
                 try: 
-                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'false'
+                    pod_template.metadata.annotations['sidecar.istio.io/inject'] = 'true'
                 except TypeError:
-                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'false'}
+                    pod_template.metadata.annotations = {'sidecar.istio.io/inject': 'true'}
 
 
         self.pod_template = pod_template
