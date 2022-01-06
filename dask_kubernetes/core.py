@@ -294,7 +294,7 @@ class Scheduler(Pod):
         })
         # TODO: need to generalize the setting of userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': "f187974"
+            'value': "generic-id"
         })
         # create EnvoyFilter
         await self.custom_object_api.create_namespaced_custom_object(
