@@ -129,7 +129,7 @@ kubeflow:
                 - append: true
                   header:
                     key: kubeflow-userid
-                    value: kubeflow-user  # TODO ${namespace}
+                    value: userid  # ${userid}
 
   scheduler-ui-service-template:
     apiVersion: v1

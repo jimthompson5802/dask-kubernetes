@@ -292,9 +292,9 @@ class Scheduler(Pod):
         envoy_filter['spec']['configPatches'][0]['match']['routeConfiguration']['vhost'].update({
             'name': f"{self.service.metadata.name}.{self.namespace}.svc.cluster.local:{SCHEDULER_PORT}"
         })
-        # TODO: Confirm if this is namespace or userid
+        # TODO: need to generalize the setting of userid
         envoy_filter['spec']['configPatches'][0]['patch']['value']['request_headers_to_add'][0]['header'].update({
-            'value': self.namespace
+            'value': "f187974"
         })
         # create EnvoyFilter
         await self.custom_object_api.create_namespaced_custom_object(
@@ -332,7 +332,9 @@ class Scheduler(Pod):
         })
         # overwrite with cluster specific URI
         virtual_service['spec']['http'][0]['match'][0]['uri'].update({
-            'prefix': f'/apps/{self.namespace}/{self.service.metadata.name}/dask/'
+#             'prefix': f'/apps/{self.namespace}/{self.service.metadata.name}/dask/'
+            'prefix': f'/apps/{self.namespace}/dask/'
+
         })
         # create istio VirtualService Object
         await self.custom_object_api.create_namespaced_custom_object(
